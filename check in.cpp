@@ -1,7 +1,15 @@
 #include <stdio.h>
+#include <string.h>
+
+typedef struct {
+    char nome[50];
+    char cpf[20];
+    char telefone[20];
+    char email[50];
+    char endereco[100];
+} Hospede;
 
 int main() {
-
     int linhas, colunas;
     long long cpf, tel;
 
