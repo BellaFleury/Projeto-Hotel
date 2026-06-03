@@ -9,14 +9,7 @@ typedef struct {
     char endereco[100];
 } Hospede;
 
-int main() {
-    int linhas, colunas;
-    long long cpf, tel;
-
-    char nome[100];
-    char endereco[200];
-    char email[100];
-
+Hospede cadastrar() {
     printf("----Dados do check-in----\n");
     printf("Digite sua reserva (andar e quarto): ");
     scanf("%d %d", &linhas, &colunas);
@@ -30,6 +23,4 @@ int main() {
     scanf("%lld", &tel);
     printf("Email:");
     scanf("%s", email);
-    
-    return 0;
 }
