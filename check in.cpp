@@ -31,12 +31,5 @@ int main() {
     printf("Email:");
     scanf("%s", email);
     
-    
-    
-    
-    
-    
-    
-
     return 0;
 }
