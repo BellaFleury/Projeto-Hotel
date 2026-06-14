@@ -3,21 +3,7 @@
  * Projeto LIC 2026 - Controle de Reservas e Ocupacao de Hotel
  * =============================================================
  * Hotel com 20 andares e 14 apartamentos por andar.
- *
- * Requisitos implementados:
- *   REQ01 - Mapa geral de ocupacao
- *   REQ02 - Reservar apartamento
- *   REQ03 - Check-in com reserva previa
- *   REQ04 - Check-in sem reserva
- *   REQ05 - Check-out
- *   REQ06 - Cancelar reserva
- *   REQ07 - Taxas de ocupacao e de reservas
- *   REQ08 - Cadastro de dados do hospede no check-in
- *   REQ09 - Visualizar situacao de apartamento especifico
- *   REQ10 - Cadastrar dados do hospede ja na reserva (opcional)
- *   REQ11 - Verificar identidade no check-in com reserva (opcional)
- * =============================================================
- */
+ */ 
 
 #include <stdio.h>
 #include <string.h>
