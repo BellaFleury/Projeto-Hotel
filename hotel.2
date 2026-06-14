@@ -1,0 +1,434 @@
+/*
+ * =============================================================
+ * Projeto LIC 2026 - Controle de Reservas e Ocupacao de Hotel
+ * =============================================================
+ * Hotel com 20 andares e 14 apartamentos por andar.
+ */
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+/* ── Dimensoes do hotel ──────────────────────────────────────── */
+#define ANDARES 20
+#define APTOS   14
+
+/*
+ * Estrutura que armazena os dados de um hospede.
+ * O campo 'reserva' guarda o numero no formato AAAAAA*100+APTO.
+ * O campo 'tem_dados' indica se os dados foram preenchidos
+ * durante a reserva (REQ10) ou somente no check-in.
+ */
+typedef struct {
+    char nome[60];
+    char cpf[20];
+    char telefone[20];
+    char email[60];
+    char endereco[120];
+    int  reserva;
+    int  tem_dados;
+} Hospede;
+
+/*
+ * Matrizes globais do hotel.
+ * hotel[i][j] armazena o status do apartamento:
+ *   '.' = livre
+ *   'R' = reservado
+ *   'O' = ocupado
+ * dados[i][j] armazena os dados do hospede do apartamento.
+ * Indice i = andar (0-based), j = apto (0-based).
+ */
+char    hotel[ANDARES][APTOS];
+Hospede dados[ANDARES][APTOS];
+
+
+/* =============================================================
+   UTILITARIOS
+   ============================================================= */
+
+/* Limpa o terminal de forma multiplataforma. */
+void limparTela(void) {
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+
+/* Descarta caracteres pendentes no buffer de entrada ate o '\n'. */
+void limparBuffer(void) {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+/* Exibe mensagem e aguarda o usuario pressionar Enter. */
+void aguardarEnter(void) {
+    printf("\nPressione Enter para voltar ao menu...");
+    limparBuffer();
+    getchar();
+    limparTela();
+}
+
+
+/* =============================================================
+   INICIALIZACAO
+   ============================================================= */
+
+/* Marca todos os apartamentos como livres e zera os dados. */
+void inicializar(void) {
+    int i, j;
+    for (i = 0; i < ANDARES; i++) {
+        for (j = 0; j < APTOS; j++) {
+            hotel[i][j] = '.';
+            memset(&dados[i][j], 0, sizeof(Hospede));
+        }
+    }
+}
+
+
+/* =============================================================
+   VALIDACAO
+   ============================================================= */
+
+/*
+ * Le andar e apto do usuario, converte para indices 0-based
+ * e valida se estao dentro dos limites do hotel.
+ * Retorna 1 se valido, 0 caso contrario.
+ */
+int lerApto(int *ai, int *aj) {
+    int a, b;
+    printf("Andar: "); scanf("%d", &a);
+    printf("Apto : "); scanf("%d", &b);
+    *ai = a - 1;
+    *aj = b - 1;
+    if (*ai < 0 || *ai >= ANDARES || *aj < 0 || *aj >= APTOS) {
+        printf("Apartamento invalido!\n");
+        return 0;
+    }
+    return 1;
+}
+
+
+/* =============================================================
+   REQ01 - MAPA GERAL DE OCUPACAO
+   ============================================================= */
+
+/*
+ * Exibe o mapa completo do hotel com o status de cada
+ * apartamento. Andares sao exibidos do maior para o menor.
+ */
+void mostrarMapa(void) {
+    int i, j;
+
+    printf("\n=== MAPA DE OCUPACAO ===\n\n    ");
+    for (j = 1; j <= APTOS; j++)
+        printf("%3d", j);
+    printf("\n    ");
+    for (j = 0; j < APTOS; j++)
+        printf("---");
+    printf("\n");
+
+    for (i = ANDARES - 1; i >= 0; i--) {
+        printf("A%2d|", i + 1);
+        for (j = 0; j < APTOS; j++)
+            printf(" %c ", hotel[i][j]);
+        printf("\n");
+    }
+
+    printf("\nLegenda:  . Livre   R Reservado   O Ocupado\n");
+}
+
+
+/* =============================================================
+   COLETA DE DADOS DO HOSPEDE  (REQ08 / REQ10)
+   ============================================================= */
+
+/*
+ * Solicita e retorna os dados do hospede.
+ * Parametros a e b sao andar e apto em base 1,
+ * usados para gerar o numero da reserva.
+ */
+Hospede coletarDados(int a, int b) {
+    Hospede h;
+    memset(&h, 0, sizeof(Hospede));
+
+    h.reserva   = a * 100 + b;
+    h.tem_dados = 1;
+
+    printf("\n--- DADOS DO HOSPEDE ---\n");
+    printf("Nome  : "); limparBuffer(); fgets(h.nome, 60, stdin);
+    h.nome[strcspn(h.nome, "\n")] = '\0';
+
+    printf("CPF   : "); scanf("%19s",  h.cpf);
+    printf("Tel   : "); scanf("%19s",  h.telefone);
+    printf("Email : "); scanf("%59s",  h.email);
+
+    printf("End   : "); limparBuffer(); fgets(h.endereco, 120, stdin);
+    h.endereco[strcspn(h.endereco, "\n")] = '\0';
+
+    printf("Reserva: %04d\n", h.reserva);
+    return h;
+}
+
+
+/* =============================================================
+   REQ02 + REQ10 - RESERVAR APARTAMENTO
+   ============================================================= */
+
+/*
+ * Reserva um apartamento livre.
+ * Oferece ao usuario a opcao de ja cadastrar os dados
+ * do hospede durante a reserva (REQ10).
+ */
+void reservar(void) {
+    int  ai, aj, a, b;
+    char op;
+
+    printf("Andar: "); scanf("%d", &a);
+    printf("Apto : "); scanf("%d", &b);
+    ai = a - 1; aj = b - 1;
+
+    if (ai < 0 || ai >= ANDARES || aj < 0 || aj >= APTOS) {
+        printf("Apartamento invalido!\n");
+        return;
+    }
+    if (hotel[ai][aj] != '.') {
+        printf("Apartamento indisponivel! (status: %c)\n", hotel[ai][aj]);
+        return;
+    }
+
+    printf("Cadastrar dados do hospede agora? (s/n): ");
+    limparBuffer();
+    scanf("%c", &op);
+
+    if (op == 's' || op == 'S') {
+        dados[ai][aj] = coletarDados(a, b);
+    } else {
+        dados[ai][aj].reserva   = a * 100 + b;
+        dados[ai][aj].tem_dados = 0;
+    }
+
+    hotel[ai][aj] = 'R';
+    printf("Reserva %04d realizada!\n", dados[ai][aj].reserva);
+}
+
+
+/* =============================================================
+   REQ03 + REQ04 + REQ11 - CHECK-IN
+   ============================================================= */
+
+/*
+ * Realiza o check-in em um apartamento livre ou reservado.
+ * Se reservado: valida o numero da reserva (REQ03).
+ * Se os dados ja foram cadastrados na reserva: valida o
+ * CPF do hospede antes de confirmar o check-in (REQ11).
+ * Se livre ou reservado sem dados: coleta os dados (REQ04/REQ08).
+ */
+void checkin(void) {
+    int  ai, aj, a, b, num;
+    char cpf[20];
+
+    printf("Andar: "); scanf("%d", &a);
+    printf("Apto : "); scanf("%d", &b);
+    ai = a - 1; aj = b - 1;
+
+    if (ai < 0 || ai >= ANDARES || aj < 0 || aj >= APTOS) {
+        printf("Apartamento invalido!\n");
+        return;
+    }
+    if (hotel[ai][aj] == 'O') {
+        printf("Apartamento ja esta ocupado!\n");
+        return;
+    }
+
+    /* Apartamento reservado: verifica numero da reserva */
+    if (hotel[ai][aj] == 'R') {
+        printf("Numero da reserva: ");
+        scanf("%d", &num);
+
+        if (num != a * 100 + b) {
+            printf("Numero de reserva incorreto!\n");
+            return;
+        }
+
+        /* REQ11: se ha dados cadastrados, confere o CPF */
+        if (dados[ai][aj].tem_dados) {
+            printf("CPF: ");
+            scanf("%19s", cpf);
+            if (strcmp(cpf, dados[ai][aj].cpf) != 0) {
+                printf("CPF nao confere! Check-in negado.\n");
+                return;
+            }
+            printf("Identidade confirmada!\n");
+            hotel[ai][aj] = 'O';
+            printf("Check-in realizado!\n");
+            return;
+        }
+    }
+
+    /* Livre ou reservado sem dados: coleta os dados agora */
+    dados[ai][aj] = coletarDados(a, b);
+    hotel[ai][aj] = 'O';
+    printf("Check-in realizado!\n");
+}
+
+
+/* =============================================================
+   REQ05 - CHECK-OUT
+   ============================================================= */
+
+/*
+ * Realiza o check-out de um apartamento ocupado,
+ * liberando-o e apagando os dados do hospede.
+ */
+void checkout(void) {
+    int ai, aj;
+    if (!lerApto(&ai, &aj)) return;
+
+    if (hotel[ai][aj] != 'O') {
+        printf("Apartamento nao esta ocupado!\n");
+        return;
+    }
+
+    hotel[ai][aj] = '.';
+    memset(&dados[ai][aj], 0, sizeof(Hospede));
+    printf("Check-out realizado! Apartamento liberado.\n");
+}
+
+
+/* =============================================================
+   REQ06 - CANCELAR RESERVA
+   ============================================================= */
+
+/*
+ * Cancela a reserva de um apartamento,
+ * liberando-o e apagando os dados cadastrados.
+ */
+void cancelar(void) {
+    int ai, aj;
+    if (!lerApto(&ai, &aj)) return;
+
+    if (hotel[ai][aj] != 'R') {
+        printf("Nao existe reserva neste apartamento!\n");
+        return;
+    }
+
+    hotel[ai][aj] = '.';
+    memset(&dados[ai][aj], 0, sizeof(Hospede));
+    printf("Reserva cancelada!\n");
+}
+
+
+/* =============================================================
+   REQ07 - TAXAS DE OCUPACAO E DE RESERVAS
+   ============================================================= */
+
+/* Calcula e exibe as taxas de ocupacao e de reservas do hotel. */
+void taxas(void) {
+    int i, j, ocupados, reservados, total;
+
+    ocupados   = 0;
+    reservados = 0;
+    total      = ANDARES * APTOS;
+
+    for (i = 0; i < ANDARES; i++)
+        for (j = 0; j < APTOS; j++) {
+            if (hotel[i][j] == 'O') ocupados++;
+            if (hotel[i][j] == 'R') reservados++;
+        }
+
+    printf("\n=== TAXAS DO HOTEL ===\n");
+    printf("Total      : %d aptos\n",   total);
+    printf("Ocupados   : %d  (%.1f%%)\n", ocupados,   ocupados   * 100.0 / total);
+    printf("Reservados : %d  (%.1f%%)\n", reservados, reservados * 100.0 / total);
+    printf("Livres     : %d\n",           total - ocupados - reservados);
+}
+
+
+/* =============================================================
+   REQ09 - VISUALIZAR APARTAMENTO ESPECIFICO
+   ============================================================= */
+
+/*
+ * Exibe o status de um apartamento.
+ * Se ocupado, ou se reservado com dados (REQ10),
+ * exibe tambem as informacoes do hospede.
+ */
+void verApto(void) {
+    int ai, aj;
+    if (!lerApto(&ai, &aj)) return;
+
+    printf("\nStatus: ");
+    switch (hotel[ai][aj]) {
+        case '.': printf("LIVRE\n");      break;
+        case 'R': printf("RESERVADO\n");  break;
+        case 'O': printf("OCUPADO\n");    break;
+        default:  printf("?\n");          break;
+    }
+
+    if (hotel[ai][aj] == 'O' ||
+       (hotel[ai][aj] == 'R' && dados[ai][aj].tem_dados)) {
+        printf("\n--- DADOS DO HOSPEDE ---\n");
+        printf("Reserva : %04d\n", dados[ai][aj].reserva);
+        printf("Nome    : %s\n",   dados[ai][aj].nome);
+        printf("CPF     : %s\n",   dados[ai][aj].cpf);
+        printf("Tel     : %s\n",   dados[ai][aj].telefone);
+        printf("Email   : %s\n",   dados[ai][aj].email);
+        printf("End     : %s\n",   dados[ai][aj].endereco);
+        if (hotel[ai][aj] == 'R')
+            printf("(Check-in ainda nao realizado)\n");
+    }
+}
+
+
+/* =============================================================
+   MENU PRINCIPAL
+   ============================================================= */
+
+/* Exibe as opcoes do menu principal. */
+void exibirMenu(void) {
+    printf("=== SISTEMA DE HOTEL ===\n");
+    printf("1 - Mapa de ocupacao\n");
+    printf("2 - Reservar apartamento\n");
+    printf("3 - Check-in\n");
+    printf("4 - Check-out\n");
+    printf("5 - Cancelar reserva\n");
+    printf("6 - Taxas de ocupacao\n");
+    printf("7 - Ver apartamento\n");
+    printf("0 - Sair\n");
+    printf("Opcao: ");
+}
+
+
+/* =============================================================
+   MAIN
+   ============================================================= */
+
+int main(void) {
+    int op;
+
+    inicializar();
+    limparTela();
+
+    do {
+        exibirMenu();
+        scanf("%d", &op);
+        limparTela();
+
+        switch (op) {
+            case 1: mostrarMapa(); break;
+            case 2: reservar();    break;
+            case 3: checkin();     break;
+            case 4: checkout();    break;
+            case 5: cancelar();    break;
+            case 6: taxas();       break;
+            case 7: verApto();     break;
+            case 0: printf("Encerrando o sistema. Ate logo!\n"); break;
+            default: printf("Opcao invalida!\n"); break;
+        }
+
+        if (op != 0) aguardarEnter();
+
+    } while (op != 0);
+
+    return 0;
+}
