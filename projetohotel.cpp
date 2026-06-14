@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h> // Adicionado para usar o comando system()
 
 #define ANDARES 20
 #define APTOS 14
@@ -10,10 +11,33 @@ typedef struct {
     char telefone[20];
     char email[50];
     char endereco[100];
+    int reserva; 
 } Hospede;
 
 char hotel[ANDARES][APTOS];
 Hospede dados[ANDARES][APTOS];
+
+// Função para limpar o terminal de forma multiplataforma
+void limparTela() {
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
+}
+
+// Função para pausar a tela, pedir Enter e limpar depois
+void aguardarEnter() {
+    printf("\nPressione Enter para sair deste menu...");
+    
+    // Limpa o buffer de entrada para consumir o '\n' deixado pelos scanfs anteriores
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+    
+    // Aguarda o próximo Enter do usuário
+    getchar(); 
+    limparTela();
+}
 
 void inicializar() {
     for(int i = 0; i < ANDARES; i++) {
@@ -25,6 +49,7 @@ void inicializar() {
             strcpy(dados[i][j].telefone, "");
             strcpy(dados[i][j].email, "");
             strcpy(dados[i][j].endereco, "");
+            dados[i][j].reserva = 0;
         }
     }
 }
@@ -34,8 +59,10 @@ int valido(int andar, int apto) {
            apto >= 0 && apto < APTOS;
 }
 
-Hospede cadastrar() {
+Hospede cadastrar(int andar, int apto) {
     Hospede h;
+
+    h.reserva = (andar * 100) + apto;
 
     printf("\n--- DADOS DO HOSPEDE ---\n");
 
@@ -53,6 +80,8 @@ Hospede cadastrar() {
 
     printf("Endereco: ");
     scanf(" %[^\n]", h.endereco);
+
+    printf("\n>>> Cadastro finalizado! Numero da Reserva: %03d <<<\n", h.reserva);
 
     return h;
 }
@@ -116,6 +145,9 @@ void checkin() {
     printf("Apartamento: ");
     scanf("%d", &apto);
 
+    int andar_original = andar;
+    int apto_original = apto;
+
     andar--;
     apto--;
 
@@ -126,7 +158,20 @@ void checkin() {
 
     if(hotel[andar][apto] == '.' || hotel[andar][apto] == 'R') {
 
-        dados[andar][apto] = cadastrar();
+        if(hotel[andar][apto] == 'R') {
+            int num_reserva_digitado;
+            printf("Este apartamento esta reservado. Digite o numero da reserva: ");
+            scanf("%d", &num_reserva_digitado);
+
+            int num_reserva_esperado = (andar_original * 100) + apto_original;
+
+            if(num_reserva_digitado != num_reserva_esperado) {
+                printf("Numero de reserva incorreto! Check-in invalido.\n");
+                return;
+            }
+        }
+
+        dados[andar][apto] = cadastrar(andar_original, apto_original);
 
         hotel[andar][apto] = 'O';
 
@@ -163,6 +208,7 @@ void checkout() {
         strcpy(dados[andar][apto].telefone, "");
         strcpy(dados[andar][apto].email, "");
         strcpy(dados[andar][apto].endereco, "");
+        dados[andar][apto].reserva = 0; 
 
         printf("Check-out realizado!\n");
     }
@@ -241,7 +287,7 @@ void verApto() {
     if(hotel[andar][apto] == 'O') {
 
         printf("\n--- DADOS DO HOSPEDE ---\n");
-
+        printf("Codigo da Reserva: %03d\n", dados[andar][apto].reserva); 
         printf("Nome: %s\n", dados[andar][apto].nome);
         printf("CPF: %s\n", dados[andar][apto].cpf);
         printf("Telefone: %s\n", dados[andar][apto].telefone);
@@ -255,6 +301,7 @@ int main() {
     int opcao;
 
     inicializar();
+    limparTela(); // Garante que o sistema comece com a tela limpa
 
     do {
 
@@ -274,39 +321,56 @@ int main() {
         switch(opcao) {
 
             case 1:
+                limparTela();
                 mostrarMapa();
+                aguardarEnter();
                 break;
 
             case 2:
+                limparTela();
                 reservar();
+                aguardarEnter();
                 break;
 
             case 3:
+                limparTela();
                 checkin();
+                aguardarEnter();
                 break;
 
             case 4:
+                limparTela();
                 checkout();
+                aguardarEnter();
                 break;
 
             case 5:
+                limparTela();
                 cancelar();
+                aguardarEnter();
                 break;
 
             case 6:
+                limparTela();
                 taxa();
+                aguardarEnter();
                 break;
 
             case 7:
+                limparTela();
                 verApto();
+                aguardarEnter();
                 break;
 
             case 0:
+                limparTela();
                 printf("Encerrando sistema...\n");
                 break;
 
             default:
+                limparTela();
                 printf("Opcao invalida!\n");
+                aguardarEnter();
         }
 
     } while(opcao != 0);
