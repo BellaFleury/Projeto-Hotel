@@ -1,3 +1,4 @@
+//Isabella de Souza Fleury, Marcella Bertão Alarcon, Henrique Campos Rodriges e Daniel Luís de Amori Mariano Santos
 /*
  * =============================================================
  * Projeto LIC 2026 - Controle de Reservas e Ocupacao de Hotel
